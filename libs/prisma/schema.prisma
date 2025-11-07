@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_URI")
+}
+
+model IndexerState {
+  id              Int      @id @default(autoincrement())
+  contractAddress String   @unique
+  lastBlock       BigInt
+  updatedAt       DateTime @updatedAt
+}
+
+model User {
+  id                    Int       @id @default(autoincrement())
+  address               String    @unique
+  createdAt             DateTime  @default(now())
+  lastActiveAt          DateTime?
+  referrer              String? // address of inviter
+  totalDeposited        Decimal   @default(0)
+  totalWithdrawn        Decimal   @default(0)
+  totalCompounded       Decimal   @default(0)
+  totalCompoundCount    Int       @default(0)
+  totalSellCount        Int       @default(0)
+  referralEarningsUnits Decimal   @default(0)
+
+  // Relations
+  referralsAsReferrer       Referral[]              @relation("ReferrerRelation")
+  referralsAsReferee        Referral[]              @relation("RefereeRelation")
+  referralRewardsAsReferrer ReferralReward[]        @relation("RefRewardReferrer")
+  referralRewardsAsReferee  ReferralReward[]        @relation("RefRewardReferee")
+  weeklyCompoundRankings    WeeklyCompoundRanking[]
+}
+
+model Referral {
+  id                 Int       @id @default(autoincrement())
+  referrer           String
+  referee            String
+  createdAt          DateTime  @default(now())
+  totalUnitsRewarded Decimal   @default(0)
+  lastRewardAt       DateTime?
+
+  // Relations
+  referrerUser User @relation("ReferrerRelation", fields: [referrer], references: [address], onDelete: Cascade)
+  refereeUser  User @relation("RefereeRelation", fields: [referee], references: [address], onDelete: Cascade)
+
+  @@unique([referrer, referee])
+}
+
+model ReferralReward {
+  id          BigInt   @id @default(autoincrement())
+  referrer    String
+  referee     String
+  units       Decimal
+  blockNumber BigInt?
+  txHash      String?
+  timestamp   DateTime
+
+  // Relations
+  referrerUser User @relation("RefRewardReferrer", fields: [referrer], references: [address], onDelete: Cascade)
+  refereeUser  User @relation("RefRewardReferee", fields: [referee], references: [address], onDelete: Cascade)
+}
+
+model TvlSnapshot {
+  id          Int      @id @default(autoincrement())
+  contractAddress String
+  tvl         Decimal  // TVL в ETH
+  blockNumber BigInt
+  timestamp   DateTime @default(now())
+  
+  @@index([contractAddress, timestamp])
+  @@index([timestamp])
+}
+
+model WeeklyCompoundRanking {
+  id          Int      @id @default(autoincrement())
+  weekStart   DateTime // Начало недели (понедельник)
+  weekEnd     DateTime // Конец недели (воскресенье)
+  userAddress String
+  compoundCount Int    @default(0)
+  totalCompounded Decimal @default(0)
+  rank        Int?     // Ранг в рейтинге за эту неделю
+  
+  // Relations
+  user User @relation(fields: [userAddress], references: [address], onDelete: Cascade)
+  
+  @@unique([weekStart, userAddress])
+  @@index([weekStart, rank])
+  @@index([userAddress])
+}
