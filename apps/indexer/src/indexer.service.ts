@@ -224,6 +224,19 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
 
         this.logger.log('WebSocket reconnected successfully');
         this.registerEventListeners();
+
+        try {
+          this.logger.log('Replaying missed events after reconnect...');
+          await this.recoverMissedEvents();
+        } catch (error) {
+          this.logger.error(
+            `Failed to replay missed events after reconnect: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+            error instanceof Error ? error.stack : undefined,
+          );
+        }
+
         this.startWebSocketHeartbeat();
         return;
       } catch (error) {
