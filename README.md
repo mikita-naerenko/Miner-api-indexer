@@ -1,108 +1,108 @@
 # DApp Backend
 
-Backend система для индексации блокчейн-событий и предоставления API для работы с данными.
+Backend system for indexing blockchain events and exposing a data API.
 
-## Структура проекта
+## Project Structure
 
-Проект состоит из двух основных сервисов:
+The project contains two primary services:
 
-- **API Service** (`apps/api`) - REST API для получения данных
-- **Indexer Service** (`apps/indexer`) - Сервис для индексации блокчейн-событий
+- **API Service** (`apps/api`) – REST API for retrieving data
+- **Indexer Service** (`apps/indexer`) – Blockchain event indexer
 
-## Быстрый старт
+## Quick Start
 
-### Требования
+### Requirements
 
 - Node.js 18+
 - PostgreSQL
 - Redis
-- Переменные окружения настроены в `.env`
+- Environment variables set in `.env`
 
-### Установка
+### Installation
 
 ```bash
 npm install
 ```
 
-### Настройка базы данных
+### Database Setup
 
 ```bash
-# Применить миграции
+# Apply migrations
 npx prisma migrate dev
 
-# Сгенерировать Prisma клиент
+# Generate Prisma client
 npx prisma generate
 ```
 
-### Запуск
+### Running
 
 ```bash
-# Запустить оба сервиса одновременно
+# Start both services
 npm run start:all
 
-# Или отдельно:
-npm run start:api      # API на порту 3000
-npm run start:indexer  # Indexer на порту 3001
+# Or individually:
+npm run start:api      # API on port 3000
+npm run start:indexer  # Indexer on port 3001
 ```
 
-## Документация
+## Documentation
 
-- **[Полная документация API](README_API.md)** - Детальное описание всех endpoints
-- **[Локальная разработка](README_LOCAL_DEV.md)** - Инструкции по настройке и запуску
+- **[Full API reference](README_API.md)** – Detailed description of all endpoints
+- **[Local development guide](README_LOCAL_DEV.md)** – Setup and run instructions
 - Swagger UI: `http://localhost:3000/docs`
 
 ## API Endpoints
 
-### Основные endpoints
+### Core endpoints
 
-- `GET /api/leaderboard` - Лидерборд пользователей (поддерживает `limit` и `offset` для пагинации)
-- `GET /api/leaderboard/:address` - Данные пользователя
-- `GET /api/referrals/:address` - Рефералы пользователя
-- `GET /api/weekly-compound-ranking` - Еженедельный рейтинг компаундов
-- `GET /api/tvl-chart` - Данные для графика TVL
+- `GET /api/leaderboard` – User leaderboard (supports `limit` and `offset`)
+- `GET /api/leaderboard/:address` – Specific user statistics
+- `GET /api/referrals/:address` – Referral details
+- `GET /api/weekly-compound-ranking` – Weekly compound ranking
+- `GET /api/tvl-chart` – TVL chart data
 
-Подробная документация: [README_API.md](README_API.md)
+See [README_API.md](README_API.md) for the full reference.
 
-## Архитектура
+## Architecture
 
 ### Indexer Service
 
-- Слушает события из смарт-контракта через WebSocket
-- Обрабатывает события через BullMQ очередь
-- Сохраняет данные в PostgreSQL через Prisma
-- Автоматически восстанавливает пропущенные события при старте
+- Subscribes to smart-contract events over WebSocket
+- Processes events through a BullMQ queue
+- Persists data in PostgreSQL via Prisma
+- Recovers missed events automatically on startup
 
 ### API Service
 
-- Предоставляет REST API для доступа к данным
-- Использует Prisma для работы с БД
-- Валидирует входные данные
-- Возвращает данные в формате JSON
-- Обновляет лидерборды и еженедельные рейтинги детерминированно (tie-breaker по `compoundCount` и адресу)
+- Exposes REST API for data access
+- Uses Prisma for database operations
+- Validates request payloads
+- Returns responses in JSON format
+- Keeps leaderboards and weekly rankings deterministic (tie-breaker by `compoundCount` and address)
 
 ## Data Serialization
 
-- Денежные и числовые метрики (Decimal, BigInt) сериализуются как строки, чтобы избежать потери точности в JSON.
-- Клиентам рекомендуется конвертировать значения в числа/BigInt по месту использования.
+- Monetary and numeric metrics (Decimal, BigInt) are serialized as strings to avoid precision loss.
+- Convert values to numbers/BigInt on the client as needed.
 
-## Тестирование
+## Testing
 
 ```bash
-npm test -- apps/api/src/api.service.spec.ts # Юнит-тесты ApiService
-npm test                                      # Полный прогон тестов
+npm test -- apps/api/src/api.service.spec.ts # ApiService unit tests
+npm test                                      # Full test run
 ```
 
-Тесты покрывают пагинацию лидерборда, вычисление рангов без загрузки всей таблицы и синхронизацию еженедельных рангов.
+Tests cover leaderboard pagination, rank calculation without loading entire tables, and weekly ranking synchronization.
 
 ## Production Notes
 
-- Все ранги пересчитываются атомарно через SQL Window Functions (`RANK()`), что исключает неконсистентные состояния.
-- Пагинация лидерборда позволяет безопасно отдавать данные даже при больших объёмах пользователей.
-- Логи NestJS используется для фиксации ошибок при пересчёте рангов.
+- Ranks are recalculated atomically with SQL window functions (`RANK()`), preventing inconsistent states.
+- Leaderboard pagination keeps responses efficient even with large datasets.
+- NestJS logging captures errors during rank recalculation.
 
-## Переменные окружения
+## Environment Variables
 
-Создайте файл `.env` со следующими переменными:
+Create a `.env` file with the following variables:
 
 ```env
 # Database
@@ -118,42 +118,42 @@ PRIVATE_NODE_BASE_SEPOLIA_HTTPS=https://...
 TEST_MINER_CONTRACT=0x...
 ```
 
-## Команды
+## Commands
 
 ```bash
-# Разработка
-npm run start:all        # Запустить оба сервиса
-npm run start:api        # Запустить только API
-npm run start:indexer    # Запустить только Indexer
+# Development
+npm run start:all        # Start both services
+npm run start:api        # Start API only
+npm run start:indexer    # Start indexer only
 
-# Сборка
-npm run build            # Собрать все проекты
+# Build
+npm run build            # Build all projects
 
-# Тестирование
-npm test                 # Запустить тесты
-npm run test:watch       # Тесты в watch режиме
+# Testing
+npm test                 # Run tests
+npm run test:watch       # Tests in watch mode
 
-# Линтинг
-npm run lint             # Проверить и исправить код
+# Linting
+npm run lint             # Lint and fix code
 
-# База данных
-npx prisma studio        # Открыть Prisma Studio
-npx prisma migrate dev   # Создать и применить миграцию
+# Database
+npx prisma studio        # Open Prisma Studio
+npx prisma migrate dev   # Create and apply a migration
 ```
 
-## Структура базы данных
+## Database Structure
 
-Основные модели:
+Key models:
 
-- `User` - Пользователи с статистикой
-- `Referral` - Реферальные связи
-- `ReferralReward` - Награды за рефералов
-- `TvlSnapshot` - Снимки TVL для графика
-- `WeeklyCompoundRanking` - Еженедельный рейтинг компаундов
-- `IndexerState` - Состояние индексера
+- `User` – Users with statistics
+- `Referral` – Referral relations
+- `ReferralReward` – Referral rewards
+- `TvlSnapshot` – TVL snapshots for charts
+- `WeeklyCompoundRanking` – Weekly compound ranking
+- `IndexerState` – Indexer status
 
-Схема: `libs/prisma/schema.prisma`
+Schema: `libs/prisma/schema.prisma`
 
-## Лицензия
+## License
 
 UNLICENSED

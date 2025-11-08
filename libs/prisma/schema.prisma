@@ -65,28 +65,28 @@ model ReferralReward {
 }
 
 model TvlSnapshot {
-  id          Int      @id @default(autoincrement())
+  id              Int      @id @default(autoincrement())
   contractAddress String
-  tvl         Decimal  // TVL в ETH
-  blockNumber BigInt
-  timestamp   DateTime @default(now())
-  
+  tvl             Decimal // TVL in ETH
+  blockNumber     BigInt
+  timestamp       DateTime @default(now())
+
   @@index([contractAddress, timestamp])
   @@index([timestamp])
 }
 
 model WeeklyCompoundRanking {
-  id          Int      @id @default(autoincrement())
-  weekStart   DateTime // Начало недели (понедельник)
-  weekEnd     DateTime // Конец недели (воскресенье)
-  userAddress String
-  compoundCount Int    @default(0)
-  totalCompounded Decimal @default(0)
-  rank        Int?     // Ранг в рейтинге за эту неделю
-  
+  id              Int      @id @default(autoincrement())
+  weekStart       DateTime // Week start (Monday)
+  weekEnd         DateTime // Week end (Sunday)
+  userAddress     String
+  compoundCount   Int      @default(0)
+  totalCompounded Decimal  @default(0)
+  rank            Int? // Rank in the weekly leaderboard
+
   // Relations
   user User @relation(fields: [userAddress], references: [address], onDelete: Cascade)
-  
+
   @@unique([weekStart, userAddress])
   @@index([weekStart, rank])
   @@index([userAddress])

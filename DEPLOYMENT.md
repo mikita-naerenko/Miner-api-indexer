@@ -6,7 +6,7 @@
 npm install --legacy-peer-deps
 ```
 
-> NestJS 11 и текущая версия `@nestjs/swagger` имеют конфликтующие peer-зависимости. Флаг `--legacy-peer-deps` обязателен, иначе установка падает с ошибкой `ERESOLVE`.
+> NestJS 11 and the current `@nestjs/swagger` version have conflicting peer dependencies. The `--legacy-peer-deps` flag is required to avoid `ERESOLVE`.
 
 ### 2. Build & Test
 
@@ -15,7 +15,7 @@ npm run build
 npm test
 ```
 
-Дополнительно (по желанию):
+Optional extras:
 
 ```bash
 npm run lint
@@ -31,21 +31,21 @@ npx prisma generate
 
 ### 4. Environment Variables
 
-Создайте файл `.env` (или используйте секреты хостинга) со значениями:
+Create a `.env` file (or host-level secrets) with:
 
 ```
-DATABASE_URL=postgresql://user:password@host:5433/db
-# или POSTGRES_URI (аналогичный URI)
+POSTGRES_URI=postgresql://user:password@host:5433/db?schema=public
+# (optional) DATABASE_URL=the same URI if tooling expects it
 
 EVENTS_REDIS_URL=redis://host:port
-# либо REDIS_HOST / REDIS_PORT
+# or REDIS_HOST / REDIS_PORT
 
 PRIVATE_NODE_BASE_SEPOLIA_WS=wss://...
 PRIVATE_NODE_BASE_SEPOLIA_HTTPS=https://...
 TEST_MINER_CONTRACT=0x...
 
-PORT=3000          # API (опционально)
-INDEXER_PORT=3001  # если переопределяете порт индексера
+PORT=3000          # API (optional)
+INDEXER_PORT=3001  # override indexer port if needed
 ```
 
 ### 5. Run Services
@@ -53,29 +53,51 @@ INDEXER_PORT=3001  # если переопределяете порт индек
 - API: `npm run start:api`
 - Indexer: `npm run start:indexer`
 
-Оба сервиса используют `ts-node` компилятор, поэтому дополнительных webpack-зависимостей не требуется.
+Both services use the `ts-node` compiler, so no extra webpack dependencies are needed.
+
+### 5a. Docker Compose Deployment
+
+1. Copy and fill the environment file:
+   ```bash
+   cp env.docker.example .env.docker
+   ```
+
+2. Build and start the stack:
+   ```bash
+   docker compose up --build -d
+   ```
+
+   Includes `postgres`, `redis`, one-shot `migrate` (runs `prisma migrate deploy`), `api`, `indexer`.
+
+3. Check logs:
+   ```bash
+   docker compose logs -f api
+   docker compose logs -f indexer
+   ```
 
 ### 6. Health Checks
 
 - Swagger: `http://<host>:3000/docs`
 - SSE Stream: `http://<host>:3000/events`
-- Лидерборд: `GET /api/leaderboard`
+- Leaderboard: `GET /api/leaderboard`
 - TVL Chart: `GET /api/tvl-chart`
 - Weekly Compound: `GET /api/weekly-compound-ranking`
 
 ### 7. Monitoring Notes
 
-- Индексер автоматически публикует события `user:update`, `tvl:update`, `weekly-compound:update` в Redis канал `events`. Убедитесь, что Redis доступен и конфигурация `EVENTS_REDIS_URL` верна.
-- Проверяйте логи BullMQ и Prisma при первой синхронизации (возможны длительные запросы при большом объёме данных).
+- The indexer publishes `user:update`, `tvl:update`, `weekly-compound:update` to the Redis `events` channel. Ensure Redis is reachable and `EVENTS_REDIS_URL` is correct.
+- Monitor BullMQ and Prisma logs during the initial sync (large datasets may trigger longer queries).
 
 ### 8. Optional: Docker
 
-Для контейнеризации потребуется создать Dockerfile (ещё не добавлен). Примерный план:
+For standalone container builds, use the existing Dockerfile. Example plan:
 
-1. Билд образа (`node:20-alpine` → `npm install --legacy-peer-deps` → `npm run build`).
-2. Запуск API / Indexer в отдельных контейнерах, проброс env и сетевых зависимостей.
+1. Build image (`node:20-alpine` → `npm install --legacy-peer-deps` → `npm run build`).
+2. Run API / Indexer in separate containers, wiring env vars and network dependencies.
+
+> The repository already includes Dockerfile and docker-compose. For standalone images without compose, build via `docker build -t dapp-backend .` and run with the desired `CMD` (`node dist/apps/api/main.js` or `node dist/apps/indexer/main.js`).
 
 ---
 
-Следуя шагам выше, проект готов к выкатыванию на staging или production. После завершающей проверки можно пушить изменения на GitHub и настраивать CI/CD под эти команды.
+Following these steps prepares the project for staging or production. After final verification, push to GitHub and wire up CI/CD with these commands.
 

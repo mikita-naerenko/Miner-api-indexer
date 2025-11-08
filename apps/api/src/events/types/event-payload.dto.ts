@@ -4,12 +4,12 @@ export class EventPayload {
   @ApiProperty({
     example: 'user:update',
     description:
-      'Тип события (user:update, tvl:update, weekly-compound:update и т.д.)',
+      'Event type (e.g. user:update, tvl:update, weekly-compound:update)',
   })
   type!: string;
 
   @ApiProperty({
-    description: 'Произвольные данные события',
+    description: 'Arbitrary event payload',
     type: 'object',
     additionalProperties: true,
     example: {

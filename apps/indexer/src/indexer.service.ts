@@ -107,7 +107,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`WebSocket URL: ${wsUrl}`);
     this.logger.log(`HTTP URL: ${httpUrl}`);
 
-    // Проверка подключения WebSocket
+    // Verify WebSocket connectivity
     try {
       const blockNumber = await this.wsProvider.getBlockNumber();
       this.logger.log(
@@ -119,7 +119,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    // Обработка ошибок WebSocket
+    // Handle WebSocket errors
     void this.wsProvider.on('error', (error) => {
       this.logger.error(
         `WebSocket error: ${error instanceof Error ? error.message : String(error)}`,
@@ -127,7 +127,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
       );
     });
 
-    // Обработка закрытия WebSocket соединения
+    // Handle WebSocket connection closure
     const ws = (this.wsProvider as any)._websocket;
     if (ws) {
       this.logger.log('WebSocket connection handler attached');
@@ -151,7 +151,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
     this.registerEventListeners();
     this.logger.log('IndexerService initialization completed');
 
-    // Проверяем listeners через 2 секунды после инициализации
+    // Check listener status 2 seconds after initialization
     setTimeout(() => {
       void (async () => {
         this.logger.log('Checking event listeners status...');
@@ -240,7 +240,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
   private registerEventListeners() {
     this.logger.log('Registering event listeners...');
 
-    // Обработка ошибок для каждого listener
+    // Handle errors for each listener
     const handleListenerError = (eventName: string, error: unknown) => {
       this.logger.error(
         `Error in ${eventName} listener: ${error instanceof Error ? error.message : String(error)}`,
@@ -456,13 +456,13 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
               await this.storeEvent(log, eventName);
             }
           }
-          // Rate limiting между запросами
+          // Rate limiting between requests
           await new Promise((r) => setTimeout(r, 1000));
         } catch (error) {
           this.logger.error(
             `Error querying ${eventName} events: ${error instanceof Error ? error.message : String(error)}`,
           );
-          // Продолжаем обработку других событий
+          // Continue processing other events
         }
       }
 
@@ -578,7 +578,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(
         `Error storing event ${eventName} (tx: ${log.transactionHash}): ${error instanceof Error ? error.message : String(error)}`,
       );
-      // Не выбрасываем ошибку, чтобы не прервать обработку других событий
+      // Do not rethrow to avoid stopping processing of other events
     }
   }
 

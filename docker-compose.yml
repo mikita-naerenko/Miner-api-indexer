@@ -1,25 +1,76 @@
-version: '3.9'
-
 services:
   postgres:
-    container_name: postgres
-    image: postgres:latest
-    restart: always
+    env_file:
+      - .env.docker
+    image: postgres:15-alpine
+    restart: unless-stopped
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
     ports:
-      - 5433:5432
+      - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - nestjs-course
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
+    env_file:
+      - .env.docker
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-volumes: 
+  migrate:
+    build:
+      context: .
+    command: npx prisma migrate deploy
+    env_file:
+      - .env.docker
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    build:
+      context: .
+    command: sh -c "node dist/apps/api/src/main.js"
+    env_file:
+      - .env.docker
+    environment:
+      PORT: ${PORT:-3000}
+    ports:
+      - '3000:3000'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  indexer:
+    build:
+      context: .
+    command: sh -c "node dist/apps/indexer/src/main.js"
+    env_file:
+      - .env.docker
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
   postgres_data:
-
-networks:
-  nestjs-course:

@@ -16,10 +16,10 @@ export class SseGateway {
   constructor(private readonly eventsService: EventsService) {}
 
   @Sse()
-  @ApiOperation({ summary: 'Получить поток сервер-сайд событий' })
+  @ApiOperation({ summary: 'Subscribe to the server-sent events stream' })
   @ApiProduces('text/event-stream')
   @ApiOkResponse({
-    description: 'Поток событий в формате Server-Sent Events',
+    description: 'Event stream in Server-Sent Events format',
     type: EventPayload,
     isArray: false,
   })

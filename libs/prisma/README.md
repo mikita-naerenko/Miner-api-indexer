@@ -1,49 +1,49 @@
-# prisma
+# Prisma Cheatsheet
 
-# 1. Инициализация Prisma (создаёт prisma/schema.prisma)
+# 1. Initialize Prisma (creates prisma/schema.prisma)
 
 npx prisma init
 
-# 2. Генерация клиента (обновляет node_modules/@prisma/client)
+# 2. Generate client (updates node_modules/@prisma/client)
 
 npx prisma generate
 
-# 3. Создание миграции и применение в базе
+# 3. Create a migration and apply to the database
 
-# Используй при изменении схемы
+# Use when the schema changes
 
 npx prisma migrate dev --name <migration_name>
 
-# 4. Применить все миграции без создания новых
+# 4. Apply all migrations without creating new ones
 
-# Удобно при деплое или на CI
+# Handy for deploy/CI
 
 npx prisma migrate deploy
 
-# 5. Применить изменения схемы напрямую в базу без миграции
+# 5. Push schema changes directly without migrations
 
-# ⚠️ Используется только на ранних этапах разработки
+# ⚠️ Use only during early development
 
 npx prisma db push
 
-# 6. Очистить базу и заново применить миграции
+# 6. Reset database and reapply migrations
 
-# Полезно при изменении структуры на этапе прототипа
+# Useful during prototyping
 
 npx prisma migrate reset
 
-# 7. Открыть Prisma Studio (GUI для данных)
+# 7. Open Prisma Studio (data GUI)
 
 npx prisma studio
 
-# 8. Проверить схему на ошибки
+# 8. Validate schema for errors
 
 npx prisma validate
 
-# 9. Посмотреть состояние миграций
+# 9. Inspect migration status
 
 npx prisma migrate status
 
-# 10. Форматировать schema.prisma
+# 10. Format schema.prisma
 
 npx prisma format

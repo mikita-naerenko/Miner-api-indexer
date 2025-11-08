@@ -113,7 +113,7 @@ export class ApiService {
       orderBy: { totalUnitsRewarded: 'desc' },
     });
 
-    // Получаем количество наград для каждого реферала
+    // Retrieve reward counts for each referee
     const referralRewardCounts = await this.prisma.referralReward.groupBy({
       by: ['referee'],
       where: { referrer: address },
@@ -137,11 +137,11 @@ export class ApiService {
   async getWeeklyCompoundRanking(
     weekStart?: Date,
   ): Promise<WeeklyCompoundEntry[]> {
-    // Если не указана дата, берем текущую неделю
+    // Use the current week if no date is provided
     const targetWeekStart = weekStart || this.getWeekStart(new Date());
 
-    // Получаем записи, отсортированные по totalCompounded (по убыванию)
-    // Ранги уже обновляются в процессоре при каждом компаунде
+    // Fetch entries ordered by totalCompounded in descending order
+    // Ranks are kept up to date by the processor on every compound
     await this.syncWeeklyRanks(targetWeekStart);
 
     const rankings = await this.prisma.weeklyCompoundRanking.findMany({
@@ -247,12 +247,12 @@ export class ApiService {
   }
 
   async updateWeeklyRankings(): Promise<void> {
-    // Этот метод должен вызываться еженедельно (через cron или scheduler)
-    // для обновления рангов всех пользователей за прошедшую неделю
+    // This method should run weekly (via cron or scheduler)
+    // to refresh ranks for all users for the previous week
     const now = new Date();
     const weekStart = this.getWeekStart(now);
 
-    // Получаем все записи за эту неделю
+    // Fetch all entries for the requested week
     try {
       await this.syncWeeklyRanks(weekStart);
     } catch (error) {
@@ -279,7 +279,7 @@ export class ApiService {
   private getWeekStart(date: Date): Date {
     const d = new Date(date);
     const day = d.getUTCDay();
-    const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1); // Понедельник = 1
+    const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1); // Monday = 1
     const weekStart = new Date(d.setUTCDate(diff));
     weekStart.setUTCHours(0, 0, 0, 0);
     return weekStart;

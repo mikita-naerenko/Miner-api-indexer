@@ -5,7 +5,10 @@ import { Inject, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { ConfigService } from '@nestjs/config';
 import { MINER_ABI } from './miner.abi';
-import { Prisma } from '@prisma/client';
+import {
+  Decimal,
+  PrismaClientKnownRequestError,
+} from '@prisma/client/runtime/library';
 import { createClient, type RedisClientType } from 'redis';
 import { REDIS_PUBLISHER } from './redis.provider';
 
@@ -65,6 +68,8 @@ export class IndexerProcessor extends WorkerHost {
   private readonly contractAddress: string;
   private readonly httpProvider: ethers.JsonRpcProvider;
   private readonly contractHttp: ethers.Contract;
+  private readonly userUpdateThrottleMs = 1000;
+  private readonly lastUserUpdateAt = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -108,6 +113,17 @@ export class IndexerProcessor extends WorkerHost {
         `Redis publish error: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+  }
+
+  private scheduleUserUpdate(address: string): void {
+    const key = address.toLowerCase();
+    const now = Date.now();
+    const last = this.lastUserUpdateAt.get(key) ?? 0;
+    if (now - last < this.userUpdateThrottleMs) {
+      return;
+    }
+    this.lastUserUpdateAt.set(key, now);
+    void this.publish('user:update', { address });
   }
 
   async process(job: IndexerJob): Promise<void> {
@@ -174,16 +190,16 @@ export class IndexerProcessor extends WorkerHost {
     await this.prisma.user.update({
       where: { address: buyer },
       data: {
-        totalDeposited: { increment: new Prisma.Decimal(paidEth) },
+        totalDeposited: { increment: new Decimal(paidEth) },
         lastActiveAt: new Date(),
       },
     });
 
-    // Сохраняем TVL после депозита
+    // Save TVL snapshot after deposit
     await this.saveTvlSnapshot(BigInt(blockNumber));
 
     await this.updateLastBlock(BigInt(blockNumber));
-    await this.publish('user:update', { address: buyer });
+    this.scheduleUserUpdate(buyer);
   }
 
   private async handleSoldUnits({
@@ -198,18 +214,18 @@ export class IndexerProcessor extends WorkerHost {
       where: { address: seller },
       data: {
         totalWithdrawn: {
-          increment: new Prisma.Decimal(grossEth),
+          increment: new Decimal(grossEth),
         },
         totalSellCount: { increment: 1 },
         lastActiveAt: new Date(),
       },
     });
 
-    // Сохраняем TVL после вывода
+    // Save TVL snapshot after withdrawal
     await this.saveTvlSnapshot(BigInt(blockNumber));
 
     await this.updateLastBlock(BigInt(blockNumber));
-    await this.publish('user:update', { address: seller });
+    this.scheduleUserUpdate(seller);
   }
 
   private async handleCompoundUnits({
@@ -229,11 +245,11 @@ export class IndexerProcessor extends WorkerHost {
       },
     });
 
-    // Обновляем еженедельный рейтинг компаундов
+    // Update weekly compound ranking
     await this.updateWeeklyCompoundRanking(user, unitsBigInt);
 
     await this.updateLastBlock(BigInt(blockNumber));
-    await this.publish('user:update', { address: user });
+    this.scheduleUserUpdate(user);
   }
 
   private async handleReferralRewarded({
@@ -249,7 +265,7 @@ export class IndexerProcessor extends WorkerHost {
     const unitsBigInt = this.ensureBigInt(units, 'units');
     const unitsDecimal = this.decimalFromBigInt(unitsBigInt);
 
-    // записываем награду
+    // Record referral reward
     await this.prisma.referralReward.create({
       data: {
         referrer,
@@ -261,7 +277,7 @@ export class IndexerProcessor extends WorkerHost {
       },
     });
 
-    // обновляем агрегаты
+    // Update aggregates
     await this.prisma.user.update({
       where: { address: referrer },
       data: { referralEarningsUnits: { increment: unitsDecimal } },
@@ -284,8 +300,8 @@ export class IndexerProcessor extends WorkerHost {
     });
 
     await this.updateLastBlock(BigInt(blockNumber));
-    await this.publish('user:update', { address: referrer });
-    await this.publish('user:update', { address: from });
+    this.scheduleUserUpdate(referrer);
+    this.scheduleUserUpdate(from);
   }
 
   private async handleReferralSet({
@@ -295,16 +311,26 @@ export class IndexerProcessor extends WorkerHost {
   }: IndexerEventPayloads['ReferralSet']) {
     await this.ensureUser(user, ref);
     await this.updateLastBlock(BigInt(blockNumber));
-    await this.publish('user:update', { address: ref });
-    await this.publish('user:update', { address: user });
+    this.scheduleUserUpdate(ref);
+    this.scheduleUserUpdate(user);
   }
 
   private async ensureUser(address: string, referrer?: string | null) {
-    await this.prisma.user.upsert({
-      where: { address },
-      update: {},
-      create: { address, referrer: referrer || null },
-    });
+    try {
+      await this.prisma.user.upsert({
+        where: { address },
+        update: {},
+        create: { address, referrer: referrer || null },
+      });
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        return;
+      }
+      throw error;
+    }
   }
 
   private async updateLastBlock(blockNumber: bigint) {
@@ -323,25 +349,46 @@ export class IndexerProcessor extends WorkerHost {
   private async saveTvlSnapshot(blockNumber: bigint) {
     try {
       const balance = await this.contractHttp.getBalance();
-      // getBalance возвращает bigint в ethers v6
+      // getBalance returns bigint in ethers v6
       const balanceBigInt =
         typeof balance === 'bigint' ? balance : BigInt(String(balance));
       const tvlEth = ethers.formatEther(balanceBigInt);
+      const tvlDecimal = new Decimal(tvlEth);
+      const blockValue = BigInt(blockNumber);
 
-      await this.prisma.tvlSnapshot.create({
-        data: {
+      const existing = await this.prisma.tvlSnapshot.findFirst({
+        where: {
           contractAddress: this.contractAddress,
-          tvl: new Prisma.Decimal(tvlEth),
-          blockNumber,
-          timestamp: new Date(),
+          blockNumber: blockValue,
         },
       });
+
+      if (existing) {
+        if (!existing.tvl.equals(tvlDecimal)) {
+          await this.prisma.tvlSnapshot.update({
+            where: { id: existing.id },
+            data: {
+              tvl: tvlDecimal,
+              timestamp: new Date(),
+            },
+          });
+        }
+      } else {
+        await this.prisma.tvlSnapshot.create({
+          data: {
+            contractAddress: this.contractAddress,
+            tvl: tvlDecimal,
+            blockNumber: blockValue,
+            timestamp: new Date(),
+          },
+        });
+      }
       await this.publish('tvl:update');
     } catch (error) {
       this.logger.error(
         `Error saving TVL snapshot: ${error instanceof Error ? error.message : String(error)}`,
       );
-      // Не выбрасываем ошибку, чтобы не прервать обработку события
+      // Do not rethrow to avoid interrupting event processing
     }
   }
 
@@ -377,7 +424,7 @@ export class IndexerProcessor extends WorkerHost {
         },
       });
 
-      // Обновляем ранги для текущей недели после каждого компаунда
+      // Update weekly ranks after each compound
       await this.updateRanksForWeek(weekStart);
       await this.publish('weekly-compound:update', {
         weekStart: weekStart.toISOString(),
@@ -386,20 +433,20 @@ export class IndexerProcessor extends WorkerHost {
       this.logger.error(
         `Error updating weekly compound ranking: ${error instanceof Error ? error.message : String(error)}`,
       );
-      // Не выбрасываем ошибку, чтобы не прервать обработку события
+      // Do not rethrow to avoid interrupting event processing
     }
   }
 
   private async updateRanksForWeek(weekStart: Date) {
     try {
-      // Получаем все записи за эту неделю, отсортированные по totalCompounded
+      // Fetch all entries for the week ordered by totalCompounded
       const rankings = await this.prisma.weeklyCompoundRanking.findMany({
         where: { weekStart },
         orderBy: { totalCompounded: 'desc' },
         select: { id: true },
       });
 
-      // Обновляем ранги для всех записей
+      // Update ranks for every record
       const updatePromises = rankings.map((ranking, index) => {
         this.prisma.weeklyCompoundRanking.update({
           where: { id: ranking.id },
@@ -412,14 +459,14 @@ export class IndexerProcessor extends WorkerHost {
       this.logger.error(
         `Error updating ranks for week: ${error instanceof Error ? error.message : String(error)}`,
       );
-      // Не выбрасываем ошибку
+      // Do not rethrow
     }
   }
 
   private getWeekStart(date: Date): Date {
     const d = new Date(date);
     const day = d.getUTCDay();
-    const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1); // Понедельник = 1
+    const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1); // Monday = 1
     const weekStart = new Date(d.setUTCDate(diff));
     weekStart.setUTCHours(0, 0, 0, 0);
     return weekStart;
@@ -444,7 +491,7 @@ export class IndexerProcessor extends WorkerHost {
     throw new Error(`Unsupported value for ${field}: ${String(value)}`);
   }
 
-  private decimalFromBigInt(value: bigint): Prisma.Decimal {
-    return new Prisma.Decimal(value.toString());
+  private decimalFromBigInt(value: bigint): Decimal {
+    return new Decimal(value.toString());
   }
 }

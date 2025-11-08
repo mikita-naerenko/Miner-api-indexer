@@ -2,9 +2,9 @@ import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { ApiService } from './api.service';
 import { PrismaService } from '@app/prisma';
-import { Prisma } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 
-const createDecimal = (value: number | string) => new Prisma.Decimal(value);
+const createDecimal = (value: number | string) => new Decimal(value);
 
 type PrismaServiceMock = {
   user: {

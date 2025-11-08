@@ -36,27 +36,27 @@ export class ApiController {
   ) {}
 
   @Get('leaderboard')
-  @ApiOperation({ summary: 'Получить лидерборд пользователей' })
+  @ApiOperation({ summary: 'Get leaderboard' })
   @ApiQuery({
     name: 'limit',
     required: false,
     type: Number,
-    description: 'Количество записей (1-1000)',
+    description: 'Number of entries (1-1000)',
     example: 100,
   })
   @ApiQuery({
     name: 'offset',
     required: false,
     type: Number,
-    description: 'Смещение для пагинации (0-100000)',
+    description: 'Pagination offset (0-100000)',
     example: 0,
   })
   @ApiOkResponse({
     type: LeaderboardEntryDto,
     isArray: true,
-    description: 'Список пользователей с ранжированием по totalDeposited',
+    description: 'List of users ordered by totalDeposited',
   })
-  @ApiBadRequestResponse({ description: 'Некорректные параметры пагинации' })
+  @ApiBadRequestResponse({ description: 'Invalid pagination parameters' })
   async getLeaderboard(
     @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
@@ -78,19 +78,19 @@ export class ApiController {
 
   @Get('leaderboard/:address')
   @ApiOperation({
-    summary: 'Получить позицию пользователя в лидерборде',
+    summary: 'Get user position in leaderboard',
   })
   @ApiParam({
     name: 'address',
-    description: 'Ethereum адрес пользователя',
+    description: 'Ethereum address of the user',
     example: '0x1234abcd5678ef901234abcd5678ef901234abcd',
   })
   @ApiOkResponse({
     type: LeaderboardEntryDto,
-    description: 'Статистика пользователя',
+    description: 'User statistics',
   })
-  @ApiBadRequestResponse({ description: 'Некорректный формат адреса' })
-  @ApiNotFoundResponse({ description: 'Пользователь не найден' })
+  @ApiBadRequestResponse({ description: 'Invalid address format' })
+  @ApiNotFoundResponse({ description: 'User not found' })
   async getUserLeaderboardData(@Param('address') address: string) {
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
       throw new HttpException('Invalid address format', HttpStatus.BAD_REQUEST);
@@ -104,19 +104,19 @@ export class ApiController {
 
   @Get('referrals/:address')
   @ApiOperation({
-    summary: 'Получить список рефералов пользователя',
+    summary: 'Get user referrals',
   })
   @ApiParam({
     name: 'address',
-    description: 'Ethereum адрес реферера',
+    description: 'Ethereum address of the referrer',
     example: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
   })
   @ApiOkResponse({
     type: UserReferralDto,
     isArray: true,
-    description: 'Рефералы и статистика по вознаграждениям',
+    description: 'Referrals and reward statistics',
   })
-  @ApiBadRequestResponse({ description: 'Некорректный формат адреса' })
+  @ApiBadRequestResponse({ description: 'Invalid address format' })
   async getUserReferrals(@Param('address') address: string) {
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
       throw new HttpException('Invalid address format', HttpStatus.BAD_REQUEST);
@@ -126,7 +126,7 @@ export class ApiController {
 
   @Get('weekly-compound-ranking')
   @ApiOperation({
-    summary: 'Получить еженедельный рейтинг по компаундам',
+    summary: 'Get weekly compound ranking',
   })
   @ApiQuery({
     name: 'weekStart',
@@ -136,16 +136,15 @@ export class ApiController {
       type: 'string',
       format: 'date-time',
     },
-    description:
-      'Дата начала недели (ISO). Если не указана, используется текущая неделя',
+    description: 'Week start date in ISO format. Uses current week if omitted.',
     example: '2025-01-13T00:00:00.000Z',
   })
   @ApiOkResponse({
     type: WeeklyCompoundEntryDto,
     isArray: true,
-    description: 'Рейтинг пользователей за указанную неделю',
+    description: 'Ranking for the requested week',
   })
-  @ApiBadRequestResponse({ description: 'Некорректный формат даты' })
+  @ApiBadRequestResponse({ description: 'Invalid date format' })
   async getWeeklyCompoundRanking(@Query('weekStart') weekStart?: string) {
     const date = weekStart ? new Date(weekStart) : undefined;
     if (date && isNaN(date.getTime())) {
@@ -159,11 +158,11 @@ export class ApiController {
 
   @Get('weekly-compound-ranking/:address')
   @ApiOperation({
-    summary: 'Получить позицию пользователя в еженедельном рейтинге',
+    summary: 'Get user position in weekly ranking',
   })
   @ApiParam({
     name: 'address',
-    description: 'Ethereum адрес пользователя',
+    description: 'Ethereum address of the user',
     example: '0xfeedfeedfeedfeedfeedfeedfeedfeedfeedfeed',
   })
   @ApiQuery({
@@ -174,13 +173,12 @@ export class ApiController {
       type: 'string',
       format: 'date-time',
     },
-    description:
-      'Дата начала недели (ISO). Если не указана, используется текущая неделя',
+    description: 'Week start date in ISO format. Uses current week if omitted.',
     example: '2025-01-13T00:00:00.000Z',
   })
   @ApiOkResponse({ type: WeeklyCompoundEntryDto })
-  @ApiBadRequestResponse({ description: 'Некорректный формат параметров' })
-  @ApiNotFoundResponse({ description: 'Позиция пользователя не найдена' })
+  @ApiBadRequestResponse({ description: 'Invalid parameters' })
+  @ApiNotFoundResponse({ description: 'User ranking not found' })
   async getUserWeeklyRanking(
     @Param('address') address: string,
     @Query('weekStart') weekStart?: string,
@@ -204,13 +202,13 @@ export class ApiController {
 
   @Get('tvl-chart')
   @ApiOperation({
-    summary: 'Получить TVL график',
+    summary: 'Get TVL chart',
   })
   @ApiQuery({
     name: 'limit',
     required: false,
     type: Number,
-    description: 'Максимальное количество точек (1-10000)',
+    description: 'Maximum number of points (1-10000)',
     example: 1000,
   })
   @ApiQuery({
@@ -221,7 +219,7 @@ export class ApiController {
       type: 'string',
       format: 'date-time',
     },
-    description: 'Начальная дата (ISO формат)',
+    description: 'Start date (ISO format)',
     example: '2025-01-01T00:00:00.000Z',
   })
   @ApiQuery({
@@ -232,15 +230,15 @@ export class ApiController {
       type: 'string',
       format: 'date-time',
     },
-    description: 'Конечная дата (ISO формат)',
+    description: 'End date (ISO format)',
     example: '2025-01-31T23:59:59.000Z',
   })
   @ApiOkResponse({
     type: TvlDataPointDto,
     isArray: true,
-    description: 'Снимки TVL по заданному диапазону',
+    description: 'TVL snapshots for the selected range',
   })
-  @ApiBadRequestResponse({ description: 'Некорректные параметры запроса' })
+  @ApiBadRequestResponse({ description: 'Invalid query parameters' })
   async getTvlChart(
     @Query('limit', new DefaultValuePipe(1000), ParseIntPipe) limit: number,
     @Query('from') from?: string,
@@ -271,7 +269,7 @@ export class ApiController {
 
   @Get('update-weekly-rankings')
   @ApiOperation({
-    summary: 'Принудительно пересчитать ранги за текущую неделю',
+    summary: 'Force recalculation of ranks for the current week',
   })
   @ApiOkResponse({ type: ApiMessageDto })
   async updateWeeklyRankings() {

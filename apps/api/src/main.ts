@@ -7,7 +7,7 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('DApp Backend API')
-    .setDescription('Документация REST API для индексера блокчейн-событий')
+    .setDescription('REST API documentation for the blockchain event indexer')
     .setVersion('1.0.0')
     .build();
 
