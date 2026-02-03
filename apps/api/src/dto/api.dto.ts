@@ -62,23 +62,12 @@ export class UserReferralDto {
 
   @ApiProperty({ example: 5 })
   totalRewards!: number;
-}
-
-export class WeeklyCompoundEntryDto {
-  @ApiProperty({ example: 3 })
-  rank!: number;
-
-  @ApiProperty({ example: '0xfeedfeedfeedfeedfeedfeedfeedfeedfeedfeed' })
-  address!: string;
-
-  @ApiProperty({ example: 42 })
-  compoundCount!: number;
 
   @ApiProperty({
-    example: '123.456',
-    description: 'Total compounded amount as string',
+    example: '150.42',
+    description: 'Total amount of tokens bought by referee (stringified Decimal)',
   })
-  totalCompounded!: string;
+  buyAmount!: string;
 }
 
 export class TvlDataPointDto {
@@ -96,7 +85,10 @@ export class TvlDataPointDto {
   tvl!: string;
 }
 
-export class ApiMessageDto {
-  @ApiProperty({ example: 'Weekly rankings updated successfully' })
-  message!: string;
+export class TotalValueLockedDto {
+  @ApiProperty({
+    example: '5000.123',
+    description: 'Cumulative total of all deposits that entered the contract (stringified Decimal)',
+  })
+  totalDeposited!: string;
 }

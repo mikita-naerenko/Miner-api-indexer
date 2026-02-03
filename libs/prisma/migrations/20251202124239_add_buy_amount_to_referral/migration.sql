@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Referral" ADD COLUMN "buyAmount" DECIMAL(65,30) NOT NULL DEFAULT 0;
+

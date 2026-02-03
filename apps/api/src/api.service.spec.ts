@@ -18,10 +18,6 @@ type PrismaServiceMock = {
   referralReward: {
     groupBy: jest.Mock;
   };
-  weeklyCompoundRanking: {
-    findMany: jest.Mock;
-    findUnique: jest.Mock;
-  };
   tvlSnapshot: {
     findMany: jest.Mock;
   };
@@ -44,10 +40,6 @@ describe('ApiService', () => {
       },
       referralReward: {
         groupBy: jest.fn(),
-      },
-      weeklyCompoundRanking: {
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
       },
       tvlSnapshot: {
         findMany: jest.fn(),
@@ -143,44 +135,4 @@ describe('ApiService', () => {
     });
   });
 
-  it('returns weekly rankings after syncing ranks', async () => {
-    prisma.$executeRaw.mockResolvedValue(2);
-    prisma.weeklyCompoundRanking.findMany.mockResolvedValue([
-      {
-        id: 1,
-        weekStart: new Date('2024-01-01T00:00:00Z'),
-        weekEnd: new Date('2024-01-07T00:00:00Z'),
-        userAddress: '0x1',
-        compoundCount: 3,
-        totalCompounded: createDecimal(30),
-        rank: 1,
-        user: {
-          address: '0x1',
-        },
-      },
-    ] as any);
-
-    const result = await service.getWeeklyCompoundRanking(
-      new Date('2024-01-01T00:00:00Z'),
-    );
-
-    expect(prisma.$executeRaw.mock.calls.length).toBeGreaterThan(0);
-    const weeklyRankingQuery =
-      prisma.weeklyCompoundRanking.findMany.mock.calls[0]?.[0];
-    expect(weeklyRankingQuery).toMatchObject({
-      orderBy: [
-        { totalCompounded: 'desc' },
-        { compoundCount: 'desc' },
-        { userAddress: 'asc' },
-      ],
-    });
-    expect(result).toEqual([
-      {
-        rank: 1,
-        address: '0x1',
-        compoundCount: 3,
-        totalCompounded: '30',
-      },
-    ]);
-  });
 });

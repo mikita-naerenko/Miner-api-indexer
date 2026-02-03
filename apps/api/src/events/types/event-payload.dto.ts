@@ -4,7 +4,7 @@ export class EventPayload {
   @ApiProperty({
     example: 'user:update',
     description:
-      'Event type (e.g. user:update, tvl:update, weekly-compound:update)',
+      'Event type (e.g. user:update, tvl:update)',
   })
   type!: string;
 

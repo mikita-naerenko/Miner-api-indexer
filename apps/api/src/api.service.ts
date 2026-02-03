@@ -18,13 +18,7 @@ export interface UserReferral {
   totalUnitsRewarded: string;
   lastRewardAt: Date | null;
   totalRewards: number;
-}
-
-export interface WeeklyCompoundEntry {
-  rank: number;
-  address: string;
-  compoundCount: number;
-  totalCompounded: string;
+  buyAmount: string;
 }
 
 export interface TvlDataPoint {
@@ -131,79 +125,8 @@ export class ApiService {
       totalUnitsRewarded: ref.totalUnitsRewarded.toString(),
       lastRewardAt: ref.lastRewardAt,
       totalRewards: rewardCountMap.get(ref.referee) || 0,
+      buyAmount: ref.buyAmount.toString(),
     }));
-  }
-
-  async getWeeklyCompoundRanking(
-    weekStart?: Date,
-  ): Promise<WeeklyCompoundEntry[]> {
-    // Use the current week if no date is provided
-    const targetWeekStart = weekStart || this.getWeekStart(new Date());
-
-    // Fetch entries ordered by totalCompounded in descending order
-    // Ranks are kept up to date by the processor on every compound
-    await this.syncWeeklyRanks(targetWeekStart);
-
-    const rankings = await this.prisma.weeklyCompoundRanking.findMany({
-      where: { weekStart: targetWeekStart },
-      orderBy: [
-        { totalCompounded: 'desc' },
-        { compoundCount: 'desc' },
-        { userAddress: 'asc' },
-      ],
-      include: {
-        user: {
-          select: {
-            address: true,
-          },
-        },
-      },
-    });
-
-    const result: WeeklyCompoundEntry[] = rankings.map((r, index) => ({
-      rank: r.rank ?? index + 1,
-      address: r.user.address,
-      compoundCount: r.compoundCount,
-      totalCompounded: String(r.totalCompounded),
-    }));
-
-    return result;
-  }
-
-  async getUserWeeklyRanking(
-    address: string,
-    weekStart?: Date,
-  ): Promise<WeeklyCompoundEntry | null> {
-    const targetWeekStart = weekStart || this.getWeekStart(new Date());
-
-    await this.syncWeeklyRanks(targetWeekStart);
-
-    const ranking = await this.prisma.weeklyCompoundRanking.findUnique({
-      where: {
-        weekStart_userAddress: {
-          weekStart: targetWeekStart,
-          userAddress: address,
-        },
-      },
-      include: {
-        user: {
-          select: {
-            address: true,
-          },
-        },
-      },
-    });
-
-    if (!ranking) {
-      return null;
-    }
-
-    return {
-      rank: ranking.rank ?? 1,
-      address: ranking.user.address,
-      compoundCount: ranking.compoundCount,
-      totalCompounded: String(ranking.totalCompounded),
-    };
   }
 
   async getTvlChart(
@@ -246,21 +169,19 @@ export class ApiService {
     return result;
   }
 
-  async updateWeeklyRankings(): Promise<void> {
-    // This method should run weekly (via cron or scheduler)
-    // to refresh ranks for all users for the previous week
-    const now = new Date();
-    const weekStart = this.getWeekStart(now);
+  async getTotalValueLocked(): Promise<{ totalDeposited: string }> {
+    const contractAddress = this.config.getOrThrow<string>(
+      'TEST_MINER_CONTRACT',
+    );
 
-    // Fetch all entries for the requested week
-    try {
-      await this.syncWeeklyRanks(weekStart);
-    } catch (error) {
-      this.logger.error(
-        'Error updating weekly rankings',
-        error instanceof Error ? error.stack : undefined,
-      );
-    }
+    const tvl = await this.prisma.totalValueLocked.findUnique({
+      where: { contractAddress },
+      select: { totalDeposited: true },
+    });
+
+    return {
+      totalDeposited: tvl?.totalDeposited.toString() || '0',
+    };
   }
 
   private readonly leaderboardSelect = {
@@ -273,36 +194,4 @@ export class ApiService {
     lastActiveAt: true,
   } as const;
 
-  /**
-   * Numeric metrics are kept as strings in DTOs to avoid precision loss when serializing Decimal/BigInt values.
-   */
-  private getWeekStart(date: Date): Date {
-    const d = new Date(date);
-    const day = d.getUTCDay();
-    const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1); // Monday = 1
-    const weekStart = new Date(d.setUTCDate(diff));
-    weekStart.setUTCHours(0, 0, 0, 0);
-    return weekStart;
-  }
-
-  private async syncWeeklyRanks(weekStart: Date): Promise<void> {
-    await this.prisma.$executeRaw`
-      WITH ranked AS (
-        SELECT
-          "id",
-          RANK() OVER (
-            ORDER BY "totalCompounded" DESC,
-                     "compoundCount" DESC,
-                     "userAddress" ASC
-          ) AS computed_rank
-        FROM "WeeklyCompoundRanking"
-        WHERE "weekStart" = ${weekStart}
-      )
-      UPDATE "WeeklyCompoundRanking" w
-      SET "rank" = r.computed_rank
-      FROM ranked r
-      WHERE w."id" = r."id"
-        AND (w."rank" IS DISTINCT FROM r.computed_rank);
-    `;
-  }
 }

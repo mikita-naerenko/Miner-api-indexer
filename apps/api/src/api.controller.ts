@@ -20,11 +20,10 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import {
-  ApiMessageDto,
   LeaderboardEntryDto,
   TvlDataPointDto,
   UserReferralDto,
-  WeeklyCompoundEntryDto,
+  TotalValueLockedDto,
 } from './dto/api.dto';
 
 @ApiTags('DApp API')
@@ -124,82 +123,6 @@ export class ApiController {
     return this.apiService.getUserReferrals(address);
   }
 
-  @Get('weekly-compound-ranking')
-  @ApiOperation({
-    summary: 'Get weekly compound ranking',
-  })
-  @ApiQuery({
-    name: 'weekStart',
-    required: false,
-    type: String,
-    schema: {
-      type: 'string',
-      format: 'date-time',
-    },
-    description: 'Week start date in ISO format. Uses current week if omitted.',
-    example: '2025-01-13T00:00:00.000Z',
-  })
-  @ApiOkResponse({
-    type: WeeklyCompoundEntryDto,
-    isArray: true,
-    description: 'Ranking for the requested week',
-  })
-  @ApiBadRequestResponse({ description: 'Invalid date format' })
-  async getWeeklyCompoundRanking(@Query('weekStart') weekStart?: string) {
-    const date = weekStart ? new Date(weekStart) : undefined;
-    if (date && isNaN(date.getTime())) {
-      throw new HttpException(
-        'Invalid weekStart date format',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-    return this.apiService.getWeeklyCompoundRanking(date);
-  }
-
-  @Get('weekly-compound-ranking/:address')
-  @ApiOperation({
-    summary: 'Get user position in weekly ranking',
-  })
-  @ApiParam({
-    name: 'address',
-    description: 'Ethereum address of the user',
-    example: '0xfeedfeedfeedfeedfeedfeedfeedfeedfeedfeed',
-  })
-  @ApiQuery({
-    name: 'weekStart',
-    required: false,
-    type: String,
-    schema: {
-      type: 'string',
-      format: 'date-time',
-    },
-    description: 'Week start date in ISO format. Uses current week if omitted.',
-    example: '2025-01-13T00:00:00.000Z',
-  })
-  @ApiOkResponse({ type: WeeklyCompoundEntryDto })
-  @ApiBadRequestResponse({ description: 'Invalid parameters' })
-  @ApiNotFoundResponse({ description: 'User ranking not found' })
-  async getUserWeeklyRanking(
-    @Param('address') address: string,
-    @Query('weekStart') weekStart?: string,
-  ) {
-    if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
-      throw new HttpException('Invalid address format', HttpStatus.BAD_REQUEST);
-    }
-    const date = weekStart ? new Date(weekStart) : undefined;
-    if (date && isNaN(date.getTime())) {
-      throw new HttpException(
-        'Invalid weekStart date format',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-    const data = await this.apiService.getUserWeeklyRanking(address, date);
-    if (!data) {
-      throw new HttpException('User ranking not found', HttpStatus.NOT_FOUND);
-    }
-    return data;
-  }
-
   @Get('tvl-chart')
   @ApiOperation({
     summary: 'Get TVL chart',
@@ -267,13 +190,16 @@ export class ApiController {
     return this.apiService.getTvlChart(fromDate, toDate, limit);
   }
 
-  @Get('update-weekly-rankings')
+  @Get('total-value-locked')
   @ApiOperation({
-    summary: 'Force recalculation of ranks for the current week',
+    summary: 'Get Total Value Locked',
+    description: 'Returns cumulative total of all deposits that entered the contract',
   })
-  @ApiOkResponse({ type: ApiMessageDto })
-  async updateWeeklyRankings() {
-    await this.apiService.updateWeeklyRankings();
-    return { message: 'Weekly rankings updated successfully' };
+  @ApiOkResponse({
+    type: TotalValueLockedDto,
+    description: 'Total Value Locked (cumulative deposits)',
+  })
+  async getTotalValueLocked() {
+    return this.apiService.getTotalValueLocked();
   }
 }

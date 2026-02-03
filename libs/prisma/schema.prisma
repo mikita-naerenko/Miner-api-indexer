@@ -28,11 +28,10 @@ model User {
   referralEarningsUnits Decimal   @default(0)
 
   // Relations
-  referralsAsReferrer       Referral[]              @relation("ReferrerRelation")
-  referralsAsReferee        Referral[]              @relation("RefereeRelation")
-  referralRewardsAsReferrer ReferralReward[]        @relation("RefRewardReferrer")
-  referralRewardsAsReferee  ReferralReward[]        @relation("RefRewardReferee")
-  weeklyCompoundRankings    WeeklyCompoundRanking[]
+  referralsAsReferrer       Referral[]       @relation("ReferrerRelation")
+  referralsAsReferee        Referral[]       @relation("RefereeRelation")
+  referralRewardsAsReferrer ReferralReward[] @relation("RefRewardReferrer")
+  referralRewardsAsReferee  ReferralReward[] @relation("RefRewardReferee")
 }
 
 model Referral {
@@ -42,6 +41,7 @@ model Referral {
   createdAt          DateTime  @default(now())
   totalUnitsRewarded Decimal   @default(0)
   lastRewardAt       DateTime?
+  buyAmount          Decimal   @default(0) // Total amount of tokens bought by referee
 
   // Relations
   referrerUser User @relation("ReferrerRelation", fields: [referrer], references: [address], onDelete: Cascade)
@@ -75,19 +75,10 @@ model TvlSnapshot {
   @@index([timestamp])
 }
 
-model WeeklyCompoundRanking {
+model TotalValueLocked {
   id              Int      @id @default(autoincrement())
-  weekStart       DateTime // Week start (Monday)
-  weekEnd         DateTime // Week end (Sunday)
-  userAddress     String
-  compoundCount   Int      @default(0)
-  totalCompounded Decimal  @default(0)
-  rank            Int? // Rank in the weekly leaderboard
-
-  // Relations
-  user User @relation(fields: [userAddress], references: [address], onDelete: Cascade)
-
-  @@unique([weekStart, userAddress])
-  @@index([weekStart, rank])
-  @@index([userAddress])
+  contractAddress String   @unique
+  totalDeposited  Decimal  @default(0) // Cumulative total of all deposits (tokens that entered the contract)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
 }
