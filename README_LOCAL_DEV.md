@@ -39,7 +39,7 @@ PORT=3000  # API
 
 1. Create a Prisma migration (if not created yet):
 ```bash
-npx prisma migrate dev --name add_tvl_and_weekly_ranking
+npx prisma migrate dev --name init
 ```
 
 2. Generate the Prisma client:
@@ -109,8 +109,8 @@ curl http://localhost:3000/api/leaderboard
 # TVL Chart
 curl http://localhost:3000/api/tvl-chart
 
-# Weekly Compound Ranking
-curl http://localhost:3000/api/weekly-compound-ranking
+# Total Value Locked
+curl http://localhost:3000/api/total-value-locked
 ```
 
 ### Indexer

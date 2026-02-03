@@ -58,8 +58,8 @@ npm run start:indexer  # Indexer on port 3001
 - `GET /api/leaderboard` – User leaderboard (supports `limit` and `offset`)
 - `GET /api/leaderboard/:address` – Specific user statistics
 - `GET /api/referrals/:address` – Referral details
-- `GET /api/weekly-compound-ranking` – Weekly compound ranking
 - `GET /api/tvl-chart` – TVL chart data
+- `GET /api/total-value-locked` – Total value locked (cumulative deposits)
 
 See [README_API.md](README_API.md) for the full reference.
 
@@ -78,7 +78,7 @@ See [README_API.md](README_API.md) for the full reference.
 - Uses Prisma for database operations
 - Validates request payloads
 - Returns responses in JSON format
-- Keeps leaderboards and weekly rankings deterministic (tie-breaker by `compoundCount` and address)
+- Keeps leaderboards deterministic (tie-breaker by `totalDeposited` and address)
 
 ## Data Serialization
 
@@ -92,7 +92,7 @@ npm test -- apps/api/src/api.service.spec.ts # ApiService unit tests
 npm test                                      # Full test run
 ```
 
-Tests cover leaderboard pagination, rank calculation without loading entire tables, and weekly ranking synchronization.
+Tests cover leaderboard pagination and rank calculation without loading entire tables.
 
 ## Production Notes
 
@@ -149,7 +149,7 @@ Key models:
 - `Referral` – Referral relations
 - `ReferralReward` – Referral rewards
 - `TvlSnapshot` – TVL snapshots for charts
-- `WeeklyCompoundRanking` – Weekly compound ranking
+- `TotalValueLocked` – Cumulative total deposits
 - `IndexerState` – Indexer status
 
 Schema: `libs/prisma/schema.prisma`

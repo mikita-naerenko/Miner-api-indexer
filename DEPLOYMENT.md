@@ -81,11 +81,11 @@ Both services use the `ts-node` compiler, so no extra webpack dependencies are n
 - SSE Stream: `http://<host>:3000/events`
 - Leaderboard: `GET /api/leaderboard`
 - TVL Chart: `GET /api/tvl-chart`
-- Weekly Compound: `GET /api/weekly-compound-ranking`
+- Total Value Locked: `GET /api/total-value-locked`
 
 ### 7. Monitoring Notes
 
-- The indexer publishes `user:update`, `tvl:update`, `weekly-compound:update` to the Redis `events` channel. Ensure Redis is reachable and `EVENTS_REDIS_URL` is correct.
+- The indexer publishes `user:update`, `tvl:update` to the Redis `events` channel. Ensure Redis is reachable and `EVENTS_REDIS_URL` is correct.
 - Monitor BullMQ and Prisma logs during the initial sync (large datasets may trigger longer queries).
 
 ### 8. Optional: Docker
